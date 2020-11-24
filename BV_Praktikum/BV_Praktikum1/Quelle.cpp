@@ -17,46 +17,42 @@ int main(int argc, char * argv[]) {
 	//Groesse der Datei herausfinden
 	dicomDatei.seekg(0, dicomDatei.end); //Setzt den zeiger ausgehend von der ersten Zeile aufs Ende der Datei
 	int dateiGroesse = dicomDatei.tellg();
-	dicomDatei.seekg(0, dicomDatei.beg); //Zeiger wieder am anfang setzen
-
-	char* buffer = new char[dateiGroesse];
-
-	dicomDatei.read(buffer, dateiGroesse); //Fügt die anzahl, die im 2. Parameter angegeben ist in das array was im ersten Parameter angegeben ist 
-	dicomDatei.close();
-
+	dicomDatei.seekg(0, dicomDatei.beg);
 
 	//Ende des Header herausfinden
-	int headEnde = dateiGroesse - (SIZE * SIZE * 2);
-	cout << "HeadEnde: " << headEnde << endl;
-	cout << "Dateigroesse " << dateiGroesse << endl;
+    int headEnde = dateiGroesse - ( (SIZE * SIZE) * 2);
 
-	//Buffer für die reinen Bilddateien
-	/*char* buffer2 = new char[dateiGroesse - headEnde];
+    cout << "HeadEnde: " << headEnde << endl;
+    cout << "Dateigroesse " << dateiGroesse << endl;
 
-	
-	for (int i = 0; i < dateiGroesse - headEnde; i++) {
-		buffer2[i] = buffer[headEnde];
-		headEnde = headEnde + 1;
-	}
-	*/
-	
+    ushort *buffer = new ushort[dateiGroesse-headEnde]; //Platz fÃ¼r die reinen Bilddaten
+
+    dicomDatei.seekg(headEnde, dicomDatei.beg); //Setze den Zeiger ab dem HeadEnde
+
+    //Buffer mit inhalt der Bilddateien befÃ¼llen
+	dicomDatei.read((char*) buffer, dateiGroesse - headEnde); //Fuegt die anzahl, die im 2. Parameter angegeben ist in das array was im ersten Parameter angegeben ist
+
+	dicomDatei.close();
+
 	Mat bild(SIZE, SIZE,CV_16U);
 	//16bit Pixel 
-	short pixel;
-	
-	//Mat Objekt befüllen
-	for (int k = headEnde; k < 525628; k++) {
-		for (int i = 0; i < SIZE; i++) {
-			for (int j = 0; j< SIZE; j++) {
-				pixel = (uchar) buffer[k] << 8 | (uchar) buffer[k + 1]; //aus zwei 8bit werten einen 16 bit wert machen 
-				//cout << "SIZEOF PIXEL: " << pixel;
-				bild.at<ushort>(i, j) = pixel;
-			}
-		} 
-	}
-	Mat scal;
+	int pixel;
 
-	convertScaleAbs(bild, scal, 1, 0);
+	//Mat Objekt befuellen
+	for(int i = 0; i < SIZE; i++){
+	    for(int j = 0; j < SIZE; j++){
+	        pixel;
+	        bild.at<ushort>(i,j) = buffer[(i * SIZE) + j]; //Pixel
+	    }
+	}
+    imshow("Normales Bild", bild);
+
+	double min, max;
+	minMaxLoc(bild, &min, &max);
+	cout << "kleinster Grauwert: " << min << " GrÃ¶ÃŸter GRauwert: " << max << endl;
+
+	Mat scal;
+    convertScaleAbs(bild, scal, 255.0 / (max - min), -min * (255.0 / (max - min)));
 
 	imshow("Dicom", scal);
 	waitKey();
@@ -67,8 +63,5 @@ int main(int argc, char * argv[]) {
 
 
 	delete[] buffer;
-	//delete[] buffer2;
-	
-
 	return 0;
 }
