@@ -10,7 +10,7 @@ using namespace cv;
 int SIZE = 512;
 
 void readImg(String &pfad, String &datei) {
-    ifstream dicomDatei(pfad + datei);
+    ifstream dicomDatei(pfad + datei + ".dcm");
 
     //Groesse der Datei herausfinden
     dicomDatei.seekg(0, dicomDatei.end); //Setzt den zeiger ausgehend von der ersten Zeile aufs Ende der Datei
@@ -53,14 +53,14 @@ void readImg(String &pfad, String &datei) {
     minMaxLoc(bild, &min, &max);
     cout << "kleinster Grauwert: " << min << " Größter GRauwert: " << max << endl;
 
+    //Skalierung
     Mat scal;
     convertScaleAbs(bild, scal, 255.0 / (max - min), -min * (255.0 / (max - min)));
 
     imshow(datei, scal);
 
-
-    //Content printen:
-//cout.write(buffer, dateiGroesse);
+    //Bilder abspeichern
+    imwrite(pfad + datei + ".png", scal);
 
     delete[] buffer;
 }
@@ -69,9 +69,10 @@ int main(int argc, char * argv[]) {
 
 	//Datei einlesen
 	String pfad = argv[1];
-	String datei = "0.dcm";
-    String datei1 = "1.dcm";
-    String datei2 = "2.dcm";
+	/*Name der Dateien, die im Pfad liegen */
+	String datei = "0";
+    String datei1 = "1";
+    String datei2 = "2";
 
     readImg(pfad, datei);
     readImg(pfad, datei1);
