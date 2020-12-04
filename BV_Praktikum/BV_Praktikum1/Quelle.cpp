@@ -15,7 +15,7 @@ void readImg(String &pfad, String &datei) {
     //Groesse der Datei herausfinden
     dicomDatei.seekg(0, dicomDatei.end); //Setzt den zeiger ausgehend von der ersten Zeile aufs Ende der Datei
     int dateiGroesse = dicomDatei.tellg();
-    dicomDatei.seekg(0, dicomDatei.beg);
+    //dicomDatei.seekg(0, dicomDatei.beg);
 
     //Ende des Header herausfinden
     if(dateiGroesse - ( (SIZE * SIZE) * 2) < 0){
@@ -23,17 +23,20 @@ void readImg(String &pfad, String &datei) {
     }
 
     int headEnde = dateiGroesse - ( (SIZE * SIZE) * 2);
+    dicomDatei.seekg(headEnde, dicomDatei.beg); //Setze den Zeiger ab dem HeadEnde
 
     cout << "HeadEnde: " << headEnde << endl;
     cout << "Dateigroesse " << dateiGroesse << endl;
 
     ushort *buffer = new ushort[dateiGroesse-headEnde]; //Platz für die reinen Bilddaten
 
-    dicomDatei.seekg(headEnde, dicomDatei.beg); //Setze den Zeiger ab dem HeadEnde
-
     //Buffer mit inhalt der Bilddateien befüllen
-    dicomDatei.read((char*) buffer, dateiGroesse - headEnde); //Fuegt die anzahl, die im 2. Parameter angegeben ist in das array was im ersten Parameter angegeben ist
-
+    dicomDatei.read( (char*) buffer, (dateiGroesse - headEnde)); //Fuegt die anzahl, die im 2. Parameter angegeben ist in das array was im ersten Parameter angegeben ist
+    if(dicomDatei){
+        cout << "Alles korrekt" << endl;
+    } else {
+        cout << "Fehler beim lesen" << endl;
+    }
     dicomDatei.close();
 
     Mat bild(SIZE, SIZE,CV_16U);
@@ -51,7 +54,7 @@ void readImg(String &pfad, String &datei) {
 
     double min, max;
     minMaxLoc(bild, &min, &max);
-    cout << "kleinster Grauwert: " << min << " Größter GRauwert: " << max << endl;
+    cout << "kleinster Grauwert: " << min << " Groesster Grauwert: " << max << endl;
 
     //Skalierung
     Mat scal;
