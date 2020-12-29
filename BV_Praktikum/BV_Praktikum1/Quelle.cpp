@@ -9,7 +9,7 @@ using namespace cv;
 
 int SIZE = 512;
 
-void readImg(String &pfad, String &datei) {
+Mat readImg(String &pfad, String &datei) {
     ifstream dicomDatei(pfad + datei + ".dcm");
 
     //Groesse der Datei herausfinden
@@ -50,6 +50,7 @@ void readImg(String &pfad, String &datei) {
             bild.at<ushort>(i,j) = buffer[(i * SIZE) + j]; //Pixel
         }
     }
+
     imshow(pfad + datei, bild);
 
     double min, max;
@@ -66,20 +67,49 @@ void readImg(String &pfad, String &datei) {
     imwrite(pfad + datei + ".png", scal);
 
     delete[] buffer;
+    return scal;
 }
 
+void filter(Mat &eingabeBild, Mat &filterErgebnis, int filterWahl, int filtergroesse){
+    /* 1: Gauss-Filter */
+    /* 2: Median-Filter */
+    /* 3: Bilateralfilter */
+    if(filterWahl == 1){
+        Mat filterSize = getGaussianKernel(filtergroesse,0);
+        GaussianBlur(eingabeBild, filterErgebnis, filterSize.size(), 0);
+
+        imshow("Gaussian Filter", filterErgebnis);
+    }
+
+    if(filterWahl == 2){
+        medianBlur(eingabeBild, filterErgebnis, filtergroesse);
+        imshow("Medianfilter", filterErgebnis);
+    }
+
+    if(filterWahl == 3){
+        bilateralFilter(eingabeBild, filterErgebnis, 9, 50, 50);
+        imshow("Bilateral Filter", filterErgebnis);
+    }
+
+}
 int main(int argc, char * argv[]) {
 
 	//Datei einlesen
 	String pfad = argv[1];
 	/*Name der Dateien, die im Pfad liegen */
-	String datei = "0";
+	String datei = "16";
     String datei1 = "1";
     String datei2 = "2";
 
-    readImg(pfad, datei);
-    readImg(pfad, datei1);
-    readImg(pfad, datei2);
+    Mat eingabeBild = readImg(pfad, datei);
+    Mat ausgabeBild;
+    //readImg(pfad, datei1);
+    //readImg(pfad, datei2);
+
+    /*Schleife um Alle Filter zu benutzen. */
+    for(int i = 1; i < 4; i++) {
+        filter(eingabeBild, ausgabeBild, i, 9);
+    }
     waitKey();
     return 0;
 }
