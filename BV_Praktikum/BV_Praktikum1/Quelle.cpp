@@ -1,6 +1,7 @@
 /*Patrick Boadu Boafo*/
 #include <stdio.h>
 #include <opencv2/opencv.hpp>
+#include "opencv2/imgproc/imgproc.hpp"
 #include <fstream>
 
 
@@ -90,7 +91,32 @@ void filter(Mat &eingabeBild, Mat &filterErgebnis, int filterWahl, int filtergro
         bilateralFilter(eingabeBild, filterErgebnis, 9, 50, 50);
         imshow("Bilateral Filter", filterErgebnis);
     }
+}
 
+void drawHistogram(Mat &eingabeBild, Mat &histogramm, Mat &histogrammBild, int breite, int hoehe ){
+    int histSize = 256;
+
+    //Bereiche des Histogramms setzen
+    float range[] {0, 256};
+    const float *histRange = {range};
+
+    //Histogram berechnen
+    calcHist(&eingabeBild, 1, 0, Mat(), histogramm, 1, &histSize, &histRange, true, false);
+
+    //Histogram groesse festlegen
+    int bin_w = (int) ( (double) breite/histSize );
+
+    //Histogram normalisieren
+    normalize(histogramm, histogramm, 0, histogrammBild.rows, NORM_MINMAX, -1, Mat());
+
+    //Histogram zeichen
+    for(int i = 0; i < histSize; i++){
+        line( histogrammBild, Point( bin_w*(i), hoehe - cvRound(histogramm.at<float>(i)) ) ,
+                   Point( bin_w*(i), hoehe), Scalar(255,0,0));
+    }
+
+    //Histogram ausgeben
+    //imshow("Histogramm ", histogrammBild );
 }
 int main(int argc, char * argv[]) {
 
@@ -103,6 +129,13 @@ int main(int argc, char * argv[]) {
 
     Mat eingabeBild = readImg(pfad, datei);
     Mat ausgabeBild;
+
+    Mat histogramm;
+    int breite = 256;
+    int hoehe = 400;
+    Mat histogrammBild( hoehe, breite, CV_8UC3, Scalar( 0,0,0) );
+
+
     //readImg(pfad, datei1);
     //readImg(pfad, datei2);
 
@@ -110,6 +143,10 @@ int main(int argc, char * argv[]) {
     for(int i = 1; i < 4; i++) {
         filter(eingabeBild, ausgabeBild, i, 9);
     }
+
+    drawHistogram(eingabeBild, histogramm, histogrammBild, breite, hoehe );
+    imshow("Histogram", histogrammBild);
+
     waitKey();
     return 0;
 }
