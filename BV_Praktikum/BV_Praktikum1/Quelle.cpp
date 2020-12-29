@@ -55,7 +55,7 @@ void readImg(String &pfad, String &datei) {
     double min, max;
     minMaxLoc(bild, &min, &max);
     cout << "kleinster Grauwert: " << min << " Groesster Grauwert: " << max << endl;
-
+    //Test
     //Skalierung
     Mat scal;
     convertScaleAbs(bild, scal, 255.0 / (max - min), -min * (255.0 / (max - min)));
