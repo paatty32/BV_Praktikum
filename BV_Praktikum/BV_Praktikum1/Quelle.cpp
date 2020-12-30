@@ -71,7 +71,7 @@ Mat readImg(String &pfad, String &datei) {
     return scal;
 }
 
-void filter(Mat &eingabeBild, Mat &filterErgebnis, int filterWahl, int filtergroesse){
+Mat filter(Mat &eingabeBild, Mat &filterErgebnis, int filterWahl, int filtergroesse){
     /* 1: Gauss-Filter */
     /* 2: Median-Filter */
     /* 3: Bilateralfilter */
@@ -80,17 +80,21 @@ void filter(Mat &eingabeBild, Mat &filterErgebnis, int filterWahl, int filtergro
         GaussianBlur(eingabeBild, filterErgebnis, filterSize.size(), 0);
 
         imshow("Gaussian Filter", filterErgebnis);
-    }
-
-    if(filterWahl == 2){
+        return filterErgebnis;
+    }if(filterWahl == 2){
         medianBlur(eingabeBild, filterErgebnis, filtergroesse);
         imshow("Medianfilter", filterErgebnis);
+        return filterErgebnis;
     }
 
     if(filterWahl == 3){
         bilateralFilter(eingabeBild, filterErgebnis, 9, 50, 50);
+
         imshow("Bilateral Filter", filterErgebnis);
+        return filterErgebnis;
     }
+
+    return eingabeBild;
 }
 
 void drawHistogram(Mat &eingabeBild, Mat &histogramm, Mat &histogrammBild, int breite, int hoehe ){
@@ -107,6 +111,7 @@ void drawHistogram(Mat &eingabeBild, Mat &histogramm, Mat &histogrammBild, int b
     int bin_w = (int) ( (double) breite/histSize );
 
     //Histogram normalisieren
+    blur(histogramm, histogramm, Size (1,7));
     normalize(histogramm, histogramm, 0, histogrammBild.rows, NORM_MINMAX, -1, Mat());
 
     //Histogram zeichen
@@ -116,14 +121,63 @@ void drawHistogram(Mat &eingabeBild, Mat &histogramm, Mat &histogrammBild, int b
     }
 
     //Histogram ausgeben
-    //imshow("Histogramm ", histogrammBild );
+    imshow("Histogramm ", histogrammBild );
 }
+
+void segmentieren(Mat &eingabeBild){
+
+    //maximalen Grauwert bestimmen.
+    double min, max; //max == breite des Histogramms
+    minMaxLoc(eingabeBild, &min, &max);
+    cout << "minimum: " << min << " maximum: " << max << endl;
+    imshow("Eingabebild", eingabeBild);
+
+    //Histogramm zeichnen
+    Mat histogramm;
+    Mat histogrammBild( 400, 256, CV_8UC3, Scalar( 0,0,0));
+
+    drawHistogram(eingabeBild, histogramm, histogrammBild, 256, 400 );
+
+    //maximale Krümmung bestimmen mit dem Algorithmus von Tsai
+    //alle mögliche Grauwerte t innerhalb des Bereiches von R bis 255-R -> von min+255 bis max -255
+    const int R = 25;
+
+    Mat tsai1(256, 1, CV_32F, Scalar(0,0, 0));
+    Mat tsai2(256, 1, CV_32F, Scalar(0,0, 0));
+
+    for(int i = R; i < max - R; i++){
+        for(int j = 1; j <= R; j++){
+            tsai1.at<float>(i) += (histogramm.at<float>(i+j) - histogramm.at<float>(i-j)) / (2.0 * ((float) i) );
+        }
+        tsai1.at<float>(i) = tsai1.at<float>(i) * (1.0 / ((float) R ));
+    }
+
+    for(int i = R; i < max - R; i++){
+        for(int j = 1; j <= R; j++){
+            tsai2.at<float>(i) += abs(tsai1.at<float>(i+j) - tsai1.at<float>(i-j));
+        }
+        tsai2.at<float>(i) = (tsai2.at<float>(i) * (1.0 / ((float) R)));
+    }
+
+    //Histogramm zeichnen
+    normalize(tsai2, tsai2, 0, histogrammBild.rows, NORM_MINMAX, -1, Mat());
+    for(int i = R; i < max - R; i++){
+        line(histogrammBild, Point(i, 400 - cvRound(tsai2.at<float>(i))), Point(i, 400 - tsai2.at<float>(i+1)), Scalar(50, 0, 250), 1);
+    }
+
+    imshow("Segmentierung", histogrammBild);
+
+
+
+}
+
+
 int main(int argc, char * argv[]) {
 
 	//Datei einlesen
 	String pfad = argv[1];
 	/*Name der Dateien, die im Pfad liegen */
-	String datei = "16";
+	String datei = "20";
     String datei1 = "1";
     String datei2 = "2";
 
@@ -133,6 +187,7 @@ int main(int argc, char * argv[]) {
     Mat histogramm;
     int breite = 256;
     int hoehe = 400;
+
     Mat histogrammBild( hoehe, breite, CV_8UC3, Scalar( 0,0,0) );
 
 
@@ -140,12 +195,14 @@ int main(int argc, char * argv[]) {
     //readImg(pfad, datei2);
 
     /*Schleife um Alle Filter zu benutzen. */
-    for(int i = 1; i < 4; i++) {
-        filter(eingabeBild, ausgabeBild, i, 9);
-    }
+/*    for(int i = 1; i < 4; i++) {
+     Mat filterergebnis =  filter(eingabeBild, ausgabeBild, 3, 3);
+     segmentieren(filterergebnis);
 
-    drawHistogram(eingabeBild, histogramm, histogrammBild, breite, hoehe );
-    imshow("Histogram", histogrammBild);
+    }
+*/
+    Mat filterergebnis =  filter(eingabeBild, ausgabeBild, 3, 9);
+    segmentieren(filterergebnis);
 
     waitKey();
     return 0;
