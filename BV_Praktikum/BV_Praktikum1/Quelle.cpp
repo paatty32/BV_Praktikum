@@ -52,7 +52,7 @@ Mat readImg(String &pfad, String &datei) {
         }
     }
 
-    imshow(pfad + datei, bild);
+   // imshow(pfad + datei, bild);
 
     double min, max;
     minMaxLoc(bild, &min, &max);
@@ -62,7 +62,8 @@ Mat readImg(String &pfad, String &datei) {
     Mat scal;
     convertScaleAbs(bild, scal, 255.0 / (max - min), -min * (255.0 / (max - min)));
 
-    imshow(datei, scal);
+    //
+    // imshow(datei, scal);
 
     //Bilder abspeichern
     imwrite(pfad + datei + ".png", scal);
@@ -71,6 +72,7 @@ Mat readImg(String &pfad, String &datei) {
     return scal;
 }
 
+/*Praktikum 2*/
 Mat filter(Mat &eingabeBild, Mat &filterErgebnis, int filterWahl, int filtergroesse){
     /* 1: Gauss-Filter */
     /* 2: Median-Filter */
@@ -79,18 +81,18 @@ Mat filter(Mat &eingabeBild, Mat &filterErgebnis, int filterWahl, int filtergroe
         Mat filterSize = getGaussianKernel(filtergroesse,0);
         GaussianBlur(eingabeBild, filterErgebnis, filterSize.size(), 0);
 
-        imshow("Gaussian Filter", filterErgebnis);
+        //imshow("Gaussian Filter", filterErgebnis);
         return filterErgebnis;
     }if(filterWahl == 2){
         medianBlur(eingabeBild, filterErgebnis, filtergroesse);
-        imshow("Medianfilter", filterErgebnis);
+        //imshow("Medianfilter", filterErgebnis);
         return filterErgebnis;
     }
 
     if(filterWahl == 3){
         bilateralFilter(eingabeBild, filterErgebnis, 9, 50, 50);
 
-        imshow("Bilateral Filter", filterErgebnis);
+        //imshow("Bilateral Filter", filterErgebnis);
         return filterErgebnis;
     }
 
@@ -121,16 +123,16 @@ void drawHistogram(Mat &eingabeBild, Mat &histogramm, Mat &histogrammBild, int b
     }
 
     //Histogram ausgeben
-    imshow("Histogramm ", histogrammBild );
+    //imshow("Histogramm ", histogrammBild );
 }
 
-void segmentieren(Mat &eingabeBild){
+void segmentieren(Mat &eingabeBild, int filter, String &pfad, String &datei ){
 
     //maximalen Grauwert bestimmen.
     double min, max; //max == breite des Histogramms
     minMaxLoc(eingabeBild, &min, &max);
     cout << "minimum: " << min << " maximum: " << max << endl;
-    imshow("Eingabebild", eingabeBild);
+    //imshow("Eingabebild", eingabeBild);
 
     //Histogramm zeichnen
     Mat histogramm;
@@ -165,23 +167,26 @@ void segmentieren(Mat &eingabeBild){
         line(histogrammBild, Point(i, 400 - cvRound(tsai2.at<float>(i))), Point(i, 400 - tsai2.at<float>(i+1)), Scalar(50, 0, 250), 1);
     }
 
-    imshow("Segmentierung", histogrammBild);
+    //Histogram abspeichern
+    if(filter == 1){
+        imwrite(pfad + datei + "_GaussFilter" + ".png", histogrammBild);
+    } else if(filter == 2){
+        imwrite(pfad + datei + "_Medianfilter" + ".png", histogrammBild);
+    } else if(filter == 3){
+        imwrite(pfad + datei + "_Bilateral_Filter" + ".png", histogrammBild);
+    } else {
+        cout << "Falsche nummer für die Filter auswahl -> Bild wurde nicht abgespeichert" << endl;
+    }
+    //imshow("Segmentierung", histogrammBild);
 
 
 
 }
 
-
 int main(int argc, char * argv[]) {
 
 	//Datei einlesen
 	String pfad = argv[1];
-	/*Name der Dateien, die im Pfad liegen */
-	String datei = "20";
-    String datei1 = "1";
-    String datei2 = "2";
-
-    Mat eingabeBild = readImg(pfad, datei);
     Mat ausgabeBild;
 
     Mat histogramm;
@@ -190,19 +195,18 @@ int main(int argc, char * argv[]) {
 
     Mat histogrammBild( hoehe, breite, CV_8UC3, Scalar( 0,0,0) );
 
+    /*Schleife über alle Bilder */
+    for(int i = 16; i < 117; i++) {
+        String datei = to_string(i);
+        cout << datei << endl;
+        Mat eingabeBild = readImg(pfad, datei);
+        /*Schleife um Alle Filter zu benutzen. */
+        for (int j = 1; j < 4; j++) {
+            Mat filterergebnis = filter(eingabeBild, ausgabeBild, j, 3);
+            segmentieren(filterergebnis, j, pfad, datei);
 
-    //readImg(pfad, datei1);
-    //readImg(pfad, datei2);
-
-    /*Schleife um Alle Filter zu benutzen. */
-/*    for(int i = 1; i < 4; i++) {
-     Mat filterergebnis =  filter(eingabeBild, ausgabeBild, 3, 3);
-     segmentieren(filterergebnis);
-
+        }
     }
-*/
-    Mat filterergebnis =  filter(eingabeBild, ausgabeBild, 3, 9);
-    segmentieren(filterergebnis);
 
     waitKey();
     return 0;
