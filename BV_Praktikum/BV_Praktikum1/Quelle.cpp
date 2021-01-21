@@ -177,8 +177,6 @@ void segmentieren(Mat &eingabeBild, int filter, String &pfad, String &datei ){
     } else {
         cout << "Falsche nummer für die Filter auswahl -> Bild wurde nicht abgespeichert" << endl;
     }
-    //imshow("Segmentierung", histogrammBild);
-
 
 
 }
