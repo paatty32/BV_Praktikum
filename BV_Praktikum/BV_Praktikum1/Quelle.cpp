@@ -10,6 +10,63 @@ using namespace cv;
 
 int SIZE = 512;
 
+void scala(Mat &eingangsBild, Mat &ausgangsBild){
+    double min, max;
+    minMaxLoc(eingangsBild, &min, &max);
+    cout << "kleinster Grauwert: " << min << " Groesster Grauwert: " << max << endl;
+    //Test
+    //Skalierung
+    Mat scal;
+    convertScaleAbs(eingangsBild, ausgangsBild, 255.0 / (max - min), -min * (255.0 / (max - min)));
+
+}
+
+Mat readImgWithOutScal(String &pfad, String &datei){
+    ifstream dicomDatei(pfad + datei + ".dcm");
+
+    //Groesse der Datei herausfinden
+    dicomDatei.seekg(0, dicomDatei.end); //Setzt den zeiger ausgehend von der ersten Zeile aufs Ende der Datei
+    int dateiGroesse = dicomDatei.tellg();
+    //dicomDatei.seekg(0, dicomDatei.beg);
+
+    //Ende des Header herausfinden
+    if(dateiGroesse - ( (SIZE * SIZE) * 2) < 0){
+        SIZE = 256;
+    }
+
+    int headEnde = dateiGroesse - ( (SIZE * SIZE) * 2);
+    dicomDatei.seekg(headEnde, dicomDatei.beg); //Setze den Zeiger ab dem HeadEnde
+
+    cout << "HeadEnde: " << headEnde << endl;
+    cout << "Dateigroesse " << dateiGroesse << endl;
+
+    ushort *buffer = new ushort[dateiGroesse-headEnde]; //Platz für die reinen Bilddaten
+
+    //Buffer mit inhalt der Bilddateien befüllen
+    dicomDatei.read( (char*) buffer, (dateiGroesse - headEnde)); //Fuegt die anzahl, die im 2. Parameter angegeben ist in das array was im ersten Parameter angegeben ist
+    if(dicomDatei){
+        cout << "Alles korrekt" << endl;
+    } else {
+        cout << "Fehler beim lesen" << endl;
+    }
+    dicomDatei.close();
+
+    Mat bild(SIZE, SIZE,CV_16U);
+    //16bit Pixel
+    int pixel;
+
+    //Mat Objekt befuellen
+    for(int i = 0; i < SIZE; i++){
+        for(int j = 0; j < SIZE; j++){
+            pixel;
+            bild.at<ushort>(i,j) = buffer[(i * SIZE) + j]; //Pixel
+        }
+    }
+
+    delete[] buffer;
+    return bild;
+}
+
 Mat readImg(String &pfad, String &datei) {
     ifstream dicomDatei(pfad + datei + ".dcm");
 
@@ -126,7 +183,7 @@ void drawHistogram(Mat &eingabeBild, Mat &histogramm, Mat &histogrammBild, int b
     //imshow("Histogramm ", histogrammBild );
 }
 
-void segmentieren(Mat &eingabeBild, int filter, String &pfad, String &datei ){
+Mat segmentieren(Mat &eingabeBild, int filter, String &pfad, String &datei ){
 
     //maximalen Grauwert bestimmen.
     double min, max; //max == breite des Histogramms
@@ -145,7 +202,7 @@ void segmentieren(Mat &eingabeBild, int filter, String &pfad, String &datei ){
     const int R = 25;
 
     Mat tsai1(256, 1, CV_32F, Scalar(0,0, 0));
-    Mat tsai2(256, 1, CV_32F, Scalar(0,0, 0));
+    Mat tsai2(256, 1, CV_32F, Scalar(0,0, 0)); //Berechnete Krümmungswerte
 
     for(int i = R; i < max - R; i++){
         for(int j = 1; j <= R; j++){
@@ -167,6 +224,25 @@ void segmentieren(Mat &eingabeBild, int filter, String &pfad, String &datei ){
         line(histogrammBild, Point(i, 400 - cvRound(tsai2.at<float>(i))), Point(i, 400 - tsai2.at<float>(i+1)), Scalar(50, 0, 250), 1);
     }
 
+    /*P3*/
+    Mat binary;
+    double schwellenwert;
+
+    for (int i = 255; i >=0; i--){
+        if(tsai2.at<float>(i) > tsai2.at<float>(i - 1) && tsai2.at<float>(i) > tsai2.at<float>(i - 2) &&
+                tsai2.at<float>(i) > tsai2.at<float>(i - 3)){
+            schwellenwert = i;
+            break; //schleife verlassen
+        }
+    }
+
+    //Binärbild erzeugen
+    threshold(eingabeBild, binary, schwellenwert, 255, THRESH_BINARY);
+
+   // imshow("Binary", binary);
+
+
+
     //Histogram abspeichern
     if(filter == 1){
         imwrite(pfad + datei + "_GaussFilter" + ".png", histogrammBild);
@@ -177,7 +253,7 @@ void segmentieren(Mat &eingabeBild, int filter, String &pfad, String &datei ){
     } else {
         cout << "Falsche nummer für die Filter auswahl -> Bild wurde nicht abgespeichert" << endl;
     }
-
+    return binary;
 
 }
 
@@ -193,19 +269,69 @@ int main(int argc, char * argv[]) {
 
     Mat histogrammBild( hoehe, breite, CV_8UC3, Scalar( 0,0,0) );
 
+    /*Praktikum 3*/
+    Mat eingabeBild(512, 512, CV_16U, Scalar(0, 0, 0));
+    Mat filterergebnis(512, 512, CV_16U, Scalar(0, 0, 0));
+    Mat thresholdBild(512, 512, CV_16U, Scalar(0, 0, 0));
+    Mat binary(512, 512, CV_16U, Scalar(0, 0, 0));;
+
     /*Schleife über alle Bilder */
     for(int i = 16; i < 117; i++) {
+        /*P3*/
         String datei = to_string(i);
         cout << datei << endl;
-        Mat eingabeBild = readImg(pfad, datei);
-        /*Schleife um Alle Filter zu benutzen. */
+
+        /*Maximum-Intensitaetsprojektion*/
+        Mat bild(512, 512, CV_16U, Scalar(0, 0, 0));;
+        bild = readImgWithOutScal(pfad, datei);
+
+        Mat medianFilter(512, 512, CV_16U, Scalar(0, 0, 0));;
+        medianFilter = filter(bild, ausgabeBild, 2, 3);
+
+        Mat binaryMedian(512, 512, CV_16U, Scalar(0, 0, 0));;
+        binaryMedian = segmentieren(medianFilter, 2, pfad, datei);
+
+        Mat thresholdOb(512, 512, CV_16U, Scalar(0, 0, 0));;
+
+        max(eingabeBild, bild, eingabeBild);
+        max(binary, binaryMedian, binary);
+
+        threshold(eingabeBild, thresholdOb, 65, 255, THRESH_BINARY);
+        max(thresholdBild, thresholdOb, thresholdBild);
+
+        //Bild einlesen
+        //eingabeBild = imread(pfad + datei + ".dcm",0);
+
+        //Auskommentiert für P3
+        // Bild einlesen
+        // Mat eingabeBild = readImg(pfad, datei);
+        /*Schleife um Alle Filter zu benutzen.
         for (int j = 1; j < 4; j++) {
             Mat filterergebnis = filter(eingabeBild, ausgabeBild, j, 3);
             segmentieren(filterergebnis, j, pfad, datei);
 
         }
+         */
     }
 
+    Mat ausgangEingabebild (512, 512, CV_16U, Scalar(0, 0, 0));;
+    Mat ausgangBinary (512, 512, CV_16U, Scalar(0, 0, 0));;
+    Mat ausgangThreshold(512, 512, CV_16U, Scalar(0, 0, 0));;
+
+    /*Zum Anzeigen und abspeichern der Bilder */
+    scala(eingabeBild, ausgabeBild);
+    scala(binary, ausgangBinary);
+    scala(thresholdBild, ausgangThreshold);
+
+    imshow("Eingelesenes Bild", ausgabeBild);
+    imshow("Binary", ausgangBinary);
+    imshow("Fester Schwellenwert", ausgangThreshold);
+
+    imwrite(pfad + "Eingelesenes Bild_Segementierung" + ".png", ausgabeBild);
+    imwrite(pfad + "Binary_Segmentierung" + ".png", ausgangBinary);
+    imwrite(pfad + "Fester_Schwellenwert_Segmentierung" + ".png", ausgangThreshold);
+
     waitKey();
+
     return 0;
 }
